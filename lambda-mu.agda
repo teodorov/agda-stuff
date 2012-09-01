@@ -1,5 +1,7 @@
 -- Parigot's λμ calculus formalization, along with a proof of Peirce.
--- Author: Matus Tejiscak <functor.sk@ziman>
+--
+-- There are some context-related bugs, as pointed out by Robbert Krebbers,
+-- waiting to get fixed someday.
 
 module lambda-mu where
 
