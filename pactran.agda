@@ -40,12 +40,12 @@ module Xor where
   xorfold : ∀ {n k} → Vec (Block n) k → Block n
   xorfold = foldr (const $ Block _) xor zeroBlock
 
+open Xor
+
 open import Data.Nat
+open import Data.Vec
 
-module PackageTransform (blockSize : ℕ) (blockCount : ℕ) where
-
-  open Xor
-  open import Data.Vec
+module PackageTransform (blockSize : ℕ) (blockCount : ℕ) (hash : Block blockSize → Block blockSize) where
 
   Block' : Set
   Block' = Block blockSize
@@ -60,21 +60,21 @@ module PackageTransform (blockSize : ℕ) (blockCount : ℕ) where
   encode key blocks = keyBlock ∷ encBlocks
     where
       encBlocks = map (xor key) blocks
-      keyBlock  = xorfold (key ∷ encBlocks)
+      keyBlock  = xorfold (key ∷ map hash encBlocks)
 
   decode : Package → Plaintext
   decode (keyBlock ∷ encBlocks) = blocks
     where
-      key    = xorfold (keyBlock ∷ encBlocks)
+      key    = xorfold (keyBlock ∷ map hash encBlocks)
       blocks = map (xor key) encBlocks
 
-module Correctness (blockSize : ℕ) (blockCount : ℕ) where
+module Correctness (blockSize : ℕ) (blockCount : ℕ) (hash : Block blockSize → Block blockSize) where
 
   open import Data.Vec
   open import Relation.Binary.PropositionalEquality
 
   open Xor
-  open PackageTransform blockSize blockCount
+  open PackageTransform blockSize blockCount hash
                      
   module Lemmas where
 
@@ -106,6 +106,7 @@ module Correctness (blockSize : ℕ) (blockCount : ℕ) where
     sxor₂ [] = refl
     sxor₂ (x ∷ xs) = cong₂ _∷_ (sxor₁ x) (sxor₂ xs)
 
+    -- Zero is left- and right-neutral for XOR.
     z⊕x₁ : ∀ x → O ⊕ x ≡ x
     z⊕x₁ O = refl
     z⊕x₁ I = refl
@@ -173,14 +174,14 @@ module Correctness (blockSize : ℕ) (blockCount : ℕ) where
 
   -- Correctness of the package transform.
   correct : ∀ key plaintext → decode (encode key plaintext) ≡ plaintext
-  correct key plaintext rewrite Lemmas.key-lemma key (map (xor key) plaintext)
+  correct key plaintext rewrite Lemmas.key-lemma key (map hash (map (xor key) plaintext))
     = Lemmas.dxor₃ key plaintext
 
 
 module Test where
 
   open Xor public
-  open PackageTransform 4 2 public
+  open PackageTransform 4 2 (λ x → x) public
   open import Data.Vec public
   
   -- C-c C-n test
